@@ -1,0 +1,13 @@
+pandas 
+scikit-learn 
+matplotlib 
+seaborn
+openpyxl
+plotly
+kmodes
+kneed
+scipy
+gower
+kaleido
+fastapi
+uvicorn
