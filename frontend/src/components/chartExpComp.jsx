@@ -10,7 +10,6 @@ const Explanation = (data)=>{
   const [explanation, setExplanation] = useState([]);
   useEffect(() => {
     let newData;
-    console.log(data.chartType)
     if(data.chartType === 'Box plot')
     {
         newData = Object.entries(data.data).map(item => {
@@ -115,16 +114,35 @@ const Explanation = (data)=>{
       }
       else
       {
-        prompt = `As a data analyst and statistics expert, analyze the ${data.chartType} using the key values from ${JSON.stringify(newData)}.
-                          Write a short bullet list where:
+        if(data.outliers == true)
+        {
+          prompt = `You are a data analyst and statistics expert.
 
-                          Each category (like OP, CO, PR, etc.) has only one main takeaway.
+              Analyze the ${data.chartType} using the key values from the following dataset:
+              ${JSON.stringify(newData)}
 
-                          Focus only on the strongest insight for each category (best, worst, stable, unstable, etc.).
+              Write a short, bullet-point summary focusing on **outliers and extremes** only.
 
-                          Do not split one category into multiple points.
+              Instructions:
+              - One clear insight per category (e.g., OP, CO, PR, etc.)
+              - Focus on the **strongest trend or outlier** for each category (best, worst, most stable, most volatile)
+              - Do **not** split one category into multiple points
+              - Keep bullets simple, casual, and easy to understand — avoid technical or statistical jargon
+              .`;
+        }
+        else
+        {
+          prompt = `As a data analyst and statistics expert, analyze the ${data.chartType} using the key values from ${JSON.stringify(newData)}.
+                            Write a short bullet list where:
 
-                          Keep bullets very simple, casual, and easy to understand without technical jargon.`;
+                            Each category (like OP, CO, PR, etc.) has only one main takeaway.
+
+                            Focus only on the strongest insight for each category (best, worst, stable, unstable, etc.).
+
+                            Do not split one category into multiple points.
+
+                            Keep bullets very simple, casual, and easy to understand without technical jargon.`;
+        }
       }
         try {
             const response = await axios.post(`${URL}/api/chart-explanation`, { prompt });

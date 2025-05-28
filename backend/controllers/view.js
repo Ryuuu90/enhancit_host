@@ -1,5 +1,5 @@
 const { Batch } = require('mongodb');
-const {Records, PersonRate, QuestionsRate, Interpretation, InterCompany, Context} = require('../models/Records');
+const {Records, PersonRate, QuestionsRate, Interpretation, InterCompany, Context, HighScoresQues, LowScoresQues} = require('../models/Records');
 const ss = require('simple-statistics');
 const axios= require('axios');
 const path = require('path');
@@ -44,68 +44,68 @@ exports.uploadFile = async (req , res) =>{
             Maturity : row.Maturity,
             Questions : {
                 PR : {
-                    PR_01 : row['PR01'],
-                    PR_02 : row['PR02'],
-                    PR_03 : row['PR03'],
-                    PR_04 : row['PR04'],
-                    PR_05 : row['PR05'],
-                    PR_06 : row['PR06'],
-                    PR_07 : row['PR07'],
-                    PR_08 : row['PR08'],
-                    PR_09 : row['PR09'],
-                    PR_10 : row['PR10'],
+                    PR01 : row['PR01'],
+                    PR02 : row['PR02'],
+                    PR03 : row['PR03'],
+                    PR04 : row['PR04'],
+                    PR05 : row['PR05'],
+                    PR06 : row['PR06'],
+                    PR07 : row['PR07'],
+                    PR08 : row['PR08'],
+                    PR09 : row['PR09'],
+                    PR10 : row['PR10'],
                     
                 },
                 CO : {
-                    CO_01 : row['CO01'],
-                    CO_02 : row['CO02'],
-                    CO_03 : row['CO03'],
-                    CO_04 : row['CO04'],
-                    CO_05 : row['CO05'],
-                    CO_06 : row['CO06'],
-                    CO_07 : row['CO07'],
-                    CO_08 : row['CO08'],
-                    CO_09 : row['CO09'],
-                    CO_10 : row['CO10'],
+                    CO01 : row['CO01'],
+                    CO02 : row['CO02'],
+                    CO03 : row['CO03'],
+                    CO04 : row['CO04'],
+                    CO05 : row['CO05'],
+                    CO06 : row['CO06'],
+                    CO07 : row['CO07'],
+                    CO08 : row['CO08'],
+                    CO09 : row['CO09'],
+                    CO10 : row['CO10'],
                     
                 },
                 OP : {
-                    OP_01 : row['OP01'],
-                    OP_02 : row['OP02'],
-                    OP_03 : row['OP03'],
-                    OP_04 : row['OP04'],
-                    OP_05 : row['OP05'],
-                    OP_06 : row['OP06'],
-                    OP_07 : row['OP07'],
-                    OP_08 : row['OP08'],
-                    OP_09 : row['OP09'],
-                    OP_10 : row['OP10'],
+                    OP01 : row['OP01'],
+                    OP02 : row['OP02'],
+                    OP03 : row['OP03'],
+                    OP04 : row['OP04'],
+                    OP05 : row['OP05'],
+                    OP06 : row['OP06'],
+                    OP07 : row['OP07'],
+                    OP08 : row['OP08'],
+                    OP09 : row['OP09'],
+                    OP10 : row['OP10'],
                     
                 },
                 AD : {
-                    AD_01 : row['AD01'],
-                    AD_02 : row['AD02'],
-                    AD_03 : row['AD03'],
-                    AD_04 : row['AD04'],
-                    AD_05 : row['AD05'],
-                    AD_06 : row['AD06'],
-                    AD_07 : row['AD07'],
-                    AD_08 : row['AD08'],
-                    AD_09 : row['AD09'],
-                    AD_10 : row['AD10'],
+                    AD01 : row['AD01'],
+                    AD02 : row['AD02'],
+                    AD03 : row['AD03'],
+                    AD04 : row['AD04'],
+                    AD05 : row['AD05'],
+                    AD06 : row['AD06'],
+                    AD07 : row['AD07'],
+                    AD08 : row['AD08'],
+                    AD09 : row['AD09'],
+                    AD10 : row['AD10'],
                     
                 },
                 CI : {
-                    CI_01 : row['CI01'],
-                    CI_02 : row['CI02'],
-                    CI_03 : row['CI03'],
-                    CI_04 : row['CI04'],
-                    CI_05 : row['CI05'],
-                    CI_06 : row['CI06'],
-                    CI_07 : row['CI07'],
-                    CI_08 : row['CI08'],
-                    CI_09 : row['CI09'],
-                    CI_10 : row['CI10'],
+                    CI01 : row['CI01'],
+                    CI02 : row['CI02'],
+                    CI03 : row['CI03'],
+                    CI04 : row['CI04'],
+                    CI05 : row['CI05'],
+                    CI06 : row['CI06'],
+                    CI07 : row['CI07'],
+                    CI08 : row['CI08'],
+                    CI09 : row['CI09'],
+                    CI10 : row['CI10'],
                     
                 }
             },
@@ -258,6 +258,7 @@ const rateAnalysing = async (data, batchId) => {
     const quesState = [];
     const quesSheet  = []
     Object.entries(quesRate).forEach(([category,questions])=> {
+
         Object.entries(questions).forEach(([ques, state]) =>{
             if (ques === 'ques') return;
             quesSheet.push({question : ques, low_rate : (state.low / state.total).toFixed(2), high_rate : (state.high / state.total).toFixed(2)})
@@ -569,103 +570,217 @@ let RatePercent = (count, quesNum) =>(
 
 )
 
-exports.questionsClustering = async (req, res) => {
+exports.questions = async (req, res) => {
     try{
 
-        const { prevQuesLowPercent, category} = req.body;
+        
         const {batchId} = req.query;
 
         if(!batchId)
             return res.status(500).json({success : false,  message: 'Error clustring data'});
+        // const workbook = xlsx.readFile(path.join(__dirname, '../public', 'high_scores_ques.xlsx'));
+        // const sheet = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        // const categories = ['PR', 'CO', 'OP', 'AD', 'CI'];
+        // const interpretation = Object.fromEntries(categories.map(cat => [cat, {}]));
+        // sheet.forEach(row => {
+        // const { Category, QuesNum, Section , Question, Meaning1, Meaning2, Meaning3, Response1, Response2, Response3, Template} = row;
+        // const quesObj = {QuesNum : '',  Section: '', Question: '', Meaning : {}, Response : {}, Template : '' }
+        // if (interpretation[Category]) {
+        //     quesObj.QuesNum = QuesNum;
+        //     quesObj.Section = Section;
+        //     quesObj.Question = Question;
+        //     quesObj['Meaning'].Meaning1 = Meaning1;
+        //     quesObj['Meaning'].Meaning2 = Meaning2;
+        //     quesObj['Meaning'].Meaning3 = Meaning3;
+        //     quesObj['Response'].Response1 = Response1;
+        //     quesObj['Response'].Response2 = Response2;
+        //     quesObj['Response'].Response3 = Response3;
+        //     quesObj.Template = Template;
+
+        //     interpretation[Category][QuesNum] = quesObj
+        //  }
+        // });
+        // // console.log(interpretation);
+        // await HighScoresQues.insertMany(interpretation)
+        const highScoresQues = await HighScoresQues.find();
+        const lowScoresQues = await LowScoresQues.find();
         const quesRate = await QuestionsRate.find({batchId});
-        const quesFiltered = quesRate.filter(row => {
-            return(!category || row.category === category);
-        })
-        const [lowRateQuestions, lowRateVal] = [[], [], 0];
-        const [midRateQuestions, midRateVal] = [[], [], 0];
-        const [highRateQuestions, highRateVal] = [[], [], 0];
-        const totalRate = [];
-        let rowPrecentLow = 0;
-        let [quesNum, lowRateCount , midRateCount, highRateCount] = [0, 0, 0, 0, 0];
-        quesFiltered.forEach(row =>{
-            rowPrecentLow = row.percentLow * 100;
-            quesNum++;
-            if(rowPrecentLow >= 0 && rowPrecentLow < prevQuesLowPercent / 2)
-            {
-                highRateQuestions.push(row);
-                highRateVal.push(row.percentLow);
-                highRateCount++;
-            }
-            if(rowPrecentLow >= prevQuesLowPercent / 2 && rowPrecentLow < prevQuesLowPercent)
-            {
-                midRateQuestions.push(row);
-                midRateVal.push(row.percentLow);
-                midRateCount++;
-            }
-            if(rowPrecentLow >= prevQuesLowPercent)
-            {
-                lowRateQuestions.push(row);
-                lowRateVal.push(row.percentLow);
-                lowRateCount++;
-            }
-        })
-        const highRateCluster = {name : "high-Rate",  quesData : highRateQuestions, avRate : average(highRateVal), ratePercent : RatePercent(highRateCount, quesNum)};
-        const midRateCluster = {name : "mid-Rate",quesData : midRateQuestions, avRate : average(midRateVal), ratePercent : RatePercent(midRateCount, quesNum)};
-        const lowRateCluster = {name : "low-Rate",quesData : lowRateQuestions, avRate : average(lowRateVal), ratePercent : RatePercent(lowRateCount, quesNum)};
+        const weakResults = {}
+        const strResults = {}
 
-        res.status(200).json({success : true, message : "Clustring data successfully", highRateCluster : highRateCluster, 
-            midRateCluster : midRateCluster, lowRateCluster: lowRateCluster});
+        quesRate.sort((a, b) => a.percentLow - b.percentLow);
+        const highScoresStr = quesRate.slice(0, 5);
+        const lowScoresWeak = quesRate.slice(-5).reverse();
+        lowScoresWeak.forEach(weakness=>{;
+            lowScoresQues.forEach(row=>{
+                const obj = row.toObject();
+                Object.entries(obj).forEach((val) => {
+                    val.forEach((q)=> {
+                        if(q[weakness.question])
+                            weakResults[weakness.question] = q[weakness.question]
+                    });
+                });
+            })
+        });
+        highScoresStr.forEach(strenght=>{;
+            highScoresQues.forEach(row=>{
+                const obj = row.toObject();
+                Object.entries(obj).forEach((val) => {
+                    val.forEach((q)=> {
+                        if(q[strenght.question])
+                            strResults[strenght.question] = q[strenght.question]
+                    });
+                });
+            })
+        });
+        const weaknesses = [];
+        Object.entries(weakResults).forEach(([key,res]) =>{
+            const vars = {QuesNum : res.QuesNum, Section : res.Section, Question : res.Question, Meaning1 : res.Meaning.Meaning1,
+                Meaning2 : res.Meaning.Meaning2, Meaning3 : res.Meaning.Meaning3,  Response1 : res.Response.Response1,
+                Response2 : res.Response.Response2, Response3 : res.Response.Response3
+            }
+            weaknesses.push(renderTemplate(res.Template, vars));
+        })
+        const strenghts = [];
+        Object.entries(strResults).forEach(([key,res]) =>{
+            const vars = {QuesNum : res.QuesNum, Section : res.Section, Question : res.Question, Meaning1 : res.Meaning.Meaning1,
+                Meaning2 : res.Meaning.Meaning2, Meaning3 : res.Meaning.Meaning3,  Response1 : res.Response.Response1,
+                Response2 : res.Response.Response2, Response3 : res.Response.Response3
+            }
+            strenghts.push(renderTemplate(res.Template, vars));
+        })
+    //     const ciVars = {Score : formatScore(data.Scores.CI)}
+    // const prRes = ['1st', '2nd'].includes(prVars.Quartile) ? renderTemplate(inter[0]['PR'].low, prVars) : renderTemplate(inter[0]['PR'].high, prVars) ;
+        
+        res.status(200).json({success : true, message : "Clustring data successfully",  weaknesses : weaknesses, strenghts : strenghts} );
     }
     catch (error) {
         res.status(500).json({success : false,  message: 'Error clustring data', error: error.message });
     } 
 };
 
+// exports.questionsClustering = async (req, res) => {
+//     try{
 
-exports.personClustering = async (req, res) => {
-    try{
+//         const { prevQuesLowPercent, category} = req.body;
+//         const {batchId} = req.query;
 
-        const { prevPersLowPercent} = req.body;
-        const {batchId} = req.query;
+//         if(!batchId)
+//             return res.status(500).json({success : false,  message: 'Error clustring data'});
+//         const quesRate = await QuestionsRate.find({batchId});
+//         // console.log(quesRate);
+//         quesRate.sort((a, b) => a.percentLow - b.percentLow);
 
-        if(!batchId)
-            return res.status(500).json({success : false,  message: 'Error clustring data'});
-        const persRate = await PersonRate.find({batchId});
-        const [lowRatePerson, lowRateVal] = [[], [], 0];
-        const [midRatePerson, midRateVal] = [[], [], 0];
-        const [highRatePerson, highRateVal] = [[], [], 0];
-        const totalRate = [];
-        let rowPrecentLow = 0;
-        let [persNum, lowRateCount , midRateCount, highRateCount] = [0, 0, 0, 0, 0];
-        persRate.forEach(row =>{
-            rowPrecentLow = row.percentLow * 100;
-            persNum++;
-            if(rowPrecentLow >= 0 && rowPrecentLow < prevPersLowPercent / 2)
-            {
-                highRatePerson.push(row);
-                highRateVal.push(row.percentLow);
-                highRateCount++;
-            }
-            if(rowPrecentLow >= prevPersLowPercent / 2 && rowPrecentLow < prevPersLowPercent)
-            {
-                midRatePerson.push(row);
-                midRateVal.push(row.percentLow);
-                midRateCount++;
-            }
-            if(rowPrecentLow >= prevPersLowPercent)
-            {
-                lowRatePerson.push(row);
-                lowRateVal.push(row.percentLow);
-                lowRateCount++;
-            }
-        })
-        const highRateCluster = {name : "high-Rate",  persData : highRatePerson, avRate : average(highRateVal), ratePercent : RatePercent(highRateCount, persNum)};
-        const midRateCluster = {name : "mid-Rate",persData : midRatePerson, avRate : average(midRateVal), ratePercent : RatePercent(midRateCount, persNum)};
-        const lowRateCluster = {name : "low-Rate",persData : lowRatePerson, avRate : average(lowRateVal), ratePercent : RatePercent(lowRateCount, persNum)};
-        res.status(200).json({success : true, message : "Clustring data successfully", highRateCluster : highRateCluster, 
-            midRateCluster : midRateCluster, lowRateCluster: lowRateCluster});
-    }
-    catch (error) {
-        res.status(500).json({success : false,  message: 'Error clustring data', error: error.message });
-    } 
-};
+//         const workbook = xlsx.readFile(path.join(__dirname, '../public', 'high_scores_ques.xlsx'));
+//         const sheet = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+//         const categories = ['PR', 'CO', 'OP', 'AD', 'CI'];
+//         const interpretation = Object.fromEntries(categories.map(cat => [cat, {QuesNum : '',  Section: '', Question: '', Meaning : {}, Response : {} , Template : ''}]));
+//         sheet.forEach(row => {
+//             const { Category, QuesNum, Section , Question, Meaning1, Meaning2, Meaning3, Response1, Response2, Response3, Template} = row;
+//             if (interpretation[Category]) {
+//                 interpretation[Category].QuesNum = QuesNum;
+//                 interpretation[Category].Section = Section;
+//                 interpretation[Category].Question = Question;
+//                 interpretation[Category]['Meaning'].Meaning1 = Meaning1;
+//                 interpretation[Category]['Meaning'].Meaning2 = Meaning2;
+//                 interpretation[Category]['Meaning'].Meaning3 = Meaning3;
+//                 interpretation[Category]['Response'].Response1 = Response1;
+//                 interpretation[Category]['Response'].Response2 = Response2;
+//                 interpretation[Category]['Response'].Response3 = Response3;
+//                 interpretation[Category].Template = Template;
+
+
+//             }
+//         });
+//         console.log(interpretation);
+//         const quesFiltered = quesRate.filter(row => {
+//             return(!category || row.category === category);
+//         })
+//         const [lowRateQuestions, lowRateVal] = [[], [], 0];
+//         const [midRateQuestions, midRateVal] = [[], [], 0];
+//         const [highRateQuestions, highRateVal] = [[], [], 0];
+//         const totalRate = [];
+//         let rowPrecentLow = 0;
+//         let [quesNum, lowRateCount , midRateCount, highRateCount] = [0, 0, 0, 0, 0];
+//         quesFiltered.forEach(row =>{
+//             rowPrecentLow = row.percentLow * 100;
+//             quesNum++;
+//             if(rowPrecentLow >= 0 && rowPrecentLow < prevQuesLowPercent / 2)
+//             {
+//                 highRateQuestions.push(row);
+//                 highRateVal.push(row.percentLow);
+//                 highRateCount++;
+//             }
+//             if(rowPrecentLow >= prevQuesLowPercent / 2 && rowPrecentLow < prevQuesLowPercent)
+//             {
+//                 midRateQuestions.push(row);
+//                 midRateVal.push(row.percentLow);
+//                 midRateCount++;
+//             }
+//             if(rowPrecentLow >= prevQuesLowPercent)
+//             {
+//                 lowRateQuestions.push(row);
+//                 lowRateVal.push(row.percentLow);
+//                 lowRateCount++;
+//             }
+//         })
+//         const highRateCluster = {name : "high-Rate",  quesData : highRateQuestions, avRate : average(highRateVal), ratePercent : RatePercent(highRateCount, quesNum)};
+//         const midRateCluster = {name : "mid-Rate",quesData : midRateQuestions, avRate : average(midRateVal), ratePercent : RatePercent(midRateCount, quesNum)};
+//         const lowRateCluster = {name : "low-Rate",quesData : lowRateQuestions, avRate : average(lowRateVal), ratePercent : RatePercent(lowRateCount, quesNum)};
+
+//         res.status(200).json({success : true, message : "Clustring data successfully", highRateCluster : highRateCluster, 
+//             midRateCluster : midRateCluster, lowRateCluster: lowRateCluster});
+//     }
+//     catch (error) {
+//         res.status(500).json({success : false,  message: 'Error clustring data', error: error.message });
+//     } 
+// };
+
+
+// exports.personClustering = async (req, res) => {
+//     try{
+
+//         const { prevPersLowPercent} = req.body;
+//         const {batchId} = req.query;
+
+//         if(!batchId)
+//             return res.status(500).json({success : false,  message: 'Error clustring data'});
+//         const persRate = await PersonRate.find({batchId});
+//         const [lowRatePerson, lowRateVal] = [[], [], 0];
+//         const [midRatePerson, midRateVal] = [[], [], 0];
+//         const [highRatePerson, highRateVal] = [[], [], 0];
+//         persRate.sort((a, b) => a.percentLow - b.percentLow);
+//         let rowPrecentLow = 0;
+//         let [persNum, lowRateCount , midRateCount, highRateCount] = [0, 0, 0, 0, 0];
+//         persRate.forEach(row =>{
+//             rowPrecentLow = row.percentLow * 100;
+//             persNum++;
+//             if(rowPrecentLow >= 0 && rowPrecentLow < prevPersLowPercent / 2)
+//             {
+//                 highRatePerson.push(row);
+//                 highRateVal.push(row.percentLow);
+//                 highRateCount++;
+//             }
+//             if(rowPrecentLow >= prevPersLowPercent / 2 && rowPrecentLow < prevPersLowPercent)
+//             {
+//                 midRatePerson.push(row);
+//                 midRateVal.push(row.percentLow);
+//                 midRateCount++;
+//             }
+//             if(rowPrecentLow >= prevPersLowPercent)
+//             {
+//                 lowRatePerson.push(row);
+//                 lowRateVal.push(row.percentLow);
+//                 lowRateCount++;
+//             }
+//         })
+//         const highRateCluster = {name : "high-Rate",  persData : highRatePerson, avRate : average(highRateVal), ratePercent : RatePercent(highRateCount, persNum)};
+//         const midRateCluster = {name : "mid-Rate",persData : midRatePerson, avRate : average(midRateVal), ratePercent : RatePercent(midRateCount, persNum)};
+//         const lowRateCluster = {name : "low-Rate",persData : lowRatePerson, avRate : average(lowRateVal), ratePercent : RatePercent(lowRateCount, persNum)};
+//         res.status(200).json({success : true, message : "Clustring data successfully", highRateCluster : highRateCluster, 
+//             midRateCluster : midRateCluster, lowRateCluster: lowRateCluster});
+//     }
+//     catch (error) {
+//         res.status(500).json({success : false,  message: 'Error clustring data', error: error.message });
+//     } 
+// };
