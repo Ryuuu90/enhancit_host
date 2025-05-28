@@ -286,7 +286,7 @@ const UploadAndDashboardPage = () => {
     useDeepCompareEffect(() => {
         const fetchClusters = async () => {
           try {
-            const response = await axios.post(`http://127.0.0.1:8000/clustering`, CompanyData);
+            const response = await axios.post(`${URL}/py/clustering`, CompanyData);
             serClustering({pca : response.data.pca, heatmap : response.data.heatmap, clustersProfile : response.data.clusterProfile});
             // You can now save response.data in state or process it as needed
           } catch (error) {
