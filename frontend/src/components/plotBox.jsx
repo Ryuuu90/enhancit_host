@@ -1,8 +1,6 @@
 import ReactApexChart from "react-apexcharts";
 import React from "react";
-import { color } from "framer-motion";
-
-const ApexChart = ({ normalDistributions }) => {
+const ApexChart = ({ normalDistributions, reportType, withOutliers }) => {
 
   const series = [
     {
@@ -10,8 +8,8 @@ const ApexChart = ({ normalDistributions }) => {
       type: 'boxPlot',
       data: Object.entries(normalDistributions).map(([key, dist]) => {
         const iqr = dist.q3 - dist.q1;
-  
-        return {
+
+        const baseData = {
           x: key === "KBICONSO" ? key : `Score-${key}`,
           y: [
             +((dist.q1 - 1.5 * iqr) * 100).toFixed(1),
@@ -20,25 +18,29 @@ const ApexChart = ({ normalDistributions }) => {
             +(dist.q3 * 100).toFixed(1),
             +(dist.max * 100).toFixed(1)
           ],
-          goals: Array.isArray(dist.Qoutliers)
-            ? dist.Qoutliers.map((outlier) => ({
+        };
+
+        // Conditionally add 'goals' only if withOutliers is true
+        if (withOutliers) {
+          baseData.goals = Array.isArray(dist.outliers)
+            ? dist.outliers.map((outlier) => ({
                 value: +(outlier * 100).toFixed(1),
-                strokeWidth: 0,
-                strokeHeight: 13,
                 strokeWidth: 0,
                 strokeHeight: 10,
                 strokeLineCap: 'round',
                 strokeColor: '#FEB019',
               }))
-            : [],
-        };
+            : [];
+        }
+
+        return baseData;
       }),
     },
-    {
+
+   ...(reportType !== "company" ? [{
       name: 'Individual',
       type : 'scatter',
       data : Object.entries(normalDistributions).map(([key, dist]) => {
-        const iqr = dist.q3 - dist.q1;
   
         return {
           x: key === "KBICONSO" ? key : `Score-${key}`,
@@ -46,14 +48,14 @@ const ApexChart = ({ normalDistributions }) => {
         };
       }),
       
-    }
+    }] : [])
   ];
   
 
   const options = {
     chart: {
       type: 'boxPlot',
-      height: 500,
+      // height: 500,
       toolbar: { show: false },
       zoom: { enabled: false },
       foreColor: '#656565'
@@ -89,7 +91,7 @@ const ApexChart = ({ normalDistributions }) => {
           const values = pointData.y;
     
           return `
-            <div style="padding: 8px;">
+            <div className="p-8">
               <strong>${pointData.x}</strong><br/>
               ${labels.map((label, i) => `${label}: ${values[i]}%`).join('<br/>')}
             </div>
@@ -98,7 +100,7 @@ const ApexChart = ({ normalDistributions }) => {
     
         if (seriesType === 'scatter' || seriesName === 'outliers') {
           return `
-            <div style="padding: 8px;">
+            <div className="p-8">
               <strong>${pointData.x}</strong><br/>
               Outlier: ${pointData.y}%
             </div>

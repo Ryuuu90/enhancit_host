@@ -64,6 +64,22 @@ const questionsRate = new mongoose.Schema({
     batchId : String
 })
 
+const highScoresQues = new mongoose.Schema({
+    PR : Object,
+    CO : Object,
+    OP : Object,
+    AD : Object,
+    CI : Object,
+})
+
+const lowScoresQues = new mongoose.Schema({
+    PR : Object,
+    CO : Object,
+    OP : Object,
+    AD : Object,
+    CI : Object,
+})
+
 const promptCache = new mongoose.Schema({
     prompt : String,
     response : String,
@@ -78,6 +94,9 @@ const PromptCache = mongoose.model('PromptCache', promptCache);
 const Interpretation = mongoose.model('Interpretation', interpretation);
 const InterCompany = mongoose.model('InterCompany', interCompany);
 const Context = mongoose.model('Context', context);
+const HighScoresQues = mongoose.model('HighScoresQues', highScoresQues);
+const LowScoresQues = mongoose.model('LowScoresQues', lowScoresQues);
+
 
 
 
@@ -88,5 +107,7 @@ module.exports = {
     PromptCache,
     Interpretation,
     InterCompany,
-    Context
+    Context, 
+    HighScoresQues,
+    LowScoresQues,
 }

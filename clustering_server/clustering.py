@@ -72,9 +72,10 @@ async def analyze(data: List[Dict[str, Any]]):
         labels = kmeans.fit_predict(inliers_data)
 
     # Assign clusters, default all to "Outlier"
+    df_valid['Cluster_Q'] = "Outlier"
+    df_valid.loc[inliers_data.index, 'Cluster_Q'] = labels
 
     # Mark clusters with fewer than 8 points as Outlier
-    df_valid['Cluster_Q'] = "Outlier"
     print(len(inliers_data))
     points_numc = (len(inliers_data)/ best_k) / 2
     print(points_numc)
@@ -84,7 +85,6 @@ async def analyze(data: List[Dict[str, Any]]):
     df_valid.loc[mask_small_clusters, 'Cluster_Q'] = "Outlier"
     filtered_inliers_index = inliers_data.index.difference(df_valid[mask_small_clusters].index)
     filtered_inliers_data = inliers_data.loc[filtered_inliers_index]
-    df_valid.loc[filtered_inliers_data.index, 'Cluster_Q'] = labels
 
     kpi_columns = ['Score-Pr', 'Score-Co', 'Score-Op', 'Score-Ad', 'Score-Ci', 'KBICONSO']
     cluster_profiles = (df_valid.groupby('Cluster_Q')[kpi_columns].mean() * 100).round(2).astype(str) + '%'
@@ -134,7 +134,7 @@ async def analyze(data: List[Dict[str, Any]]):
     output = {
         "pca": inliers_df[["PCA1", "PCA2", "Cluster_Q"]].to_dict(orient="records"),
         "clusterProfile": full_cluster_profile,
-        "heatmap": corr_matrix.to_dict(),
+        "heatmap": {"data" : corr_matrix.values.tolist(), "x" : corr_matrix.columns.tolist(), "y" : corr_matrix.index.tolist()},
         "n_clusters": best_k
     }
 
