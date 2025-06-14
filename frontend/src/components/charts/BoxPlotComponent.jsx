@@ -1,6 +1,8 @@
 import ReactApexChart from "react-apexcharts";
+import Explanation from "../insights/chartExpComp";
+import { ResponsiveContainer} from "recharts";
 import React from "react";
-const ApexChart = ({ normalDistributions, reportType, withOutliers }) => {
+const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers }) => {
 
   const series = [
     {
@@ -116,12 +118,21 @@ const ApexChart = ({ normalDistributions, reportType, withOutliers }) => {
 
   return (
     <div>
-      <div id="chart">
-          <ReactApexChart options={options} series={series} type="boxPlot" height={500} />
-        </div>
-      <div id="html-dist"></div>
+          <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
+                <div className="w-[100%] h-[100%]  flex flex-col justify-start items-center">
+                      <ResponsiveContainer width="100%" >
+                          <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Box Plot of Scores</h2>
+                          <div className="mt-9">
+                              <div id="chart">
+                                  <ReactApexChart options={options} series={series} type="boxPlot" height={500} />
+                              </div>
+                              <Explanation data={normalDistributions} chartType="Box plot"/>
+                          </div>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
     </div>
   );
 };
 
-export default ApexChart;
+export default BoxPlotComponent;

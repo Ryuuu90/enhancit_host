@@ -1,49 +1,41 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, Suspense} from "react";
 import {BsCloudUpload} from 'react-icons/bs'
 import { motion, AnimatePresence } from "framer-motion";
 import {toast} from "react-toastify"
-import ReactMarkdown from 'react-markdown';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import axios from 'axios';
-import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area,
-    PolarGrid, RadarChart, PolarAngleAxis, ComposedChart, Radar, ResponsiveContainer, PolarRadiusAxis, Scatter 
- } from "recharts";
-import Plot from "react-plotly.js";
-// import Tree from 'react-d3-tree';
-// import useMeasure  from 'react-use-measure';
-// import * as XSLX from 'xlsx'
-// import {saveAs} from 'file-saver'
-import ApexChart from '../components/plotBox'
-import Explanation from "../components/chartExpComp";
-import PCACluster from "../components/PcaCluster";
-
 import "./charts.css"
+import InterpretationComponent from "../components/insights/InterpretationComponent";
+import ContextDisplay from "../components/insights/ContextDisplay";
+const RadarChartComponent = React.lazy(() => import("../components/charts/RadarChartComponent"));
+const BoxPlotComponent = React.lazy(() => import("../components/charts/BoxPlotComponent"));
+const PCACluster = React.lazy(() => import("../components/charts/PcaCluster"));
+const DistributionChartComp = React.lazy(() => import("../components/charts/DistributionChartComp"));
+const DistributionChartScores = React.lazy(() => import("../components/charts/DistributionChartScores"));
+const QuestionRateComponent = React.lazy(() => import("../components/insights/QuestionRateComponent"));
+const HeatmapComponent = React.lazy(() => import("../components/charts/HeatmapComponent"));
+// import BubbleChartComponent from "../components/charts/BubbleChartComponent";
+const BubbleChartComponent = React.lazy(() => import("../components/charts/BubbleChartComponent"));
+
+
+
+
+
 const URL = process.env.REACT_APP_BACKEND_URL;
 
 const UploadAndDashboardPage = () => {
     const [genderStats, setGenderStats] = useState([]);
     const [ManagementStats, setManagementStats] = useState([]);
-    // const [allDataStats, setAllDataStats] = useState([]);
     const [ageStats, setAgeStats] = useState([]);
-    const [departmentD, setDepartmentD] = useState([]);
+    const [sectorData, setSectorData] = useState([]);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [records, setRecords] = useState([]);
     const [batchId, setBatchId] = useState('');
     const [filtred, setFiltred] = useState('');
-    // const [quesLowPercent, setQuesLowPercent] = useState(20);
-    // const [persLowPercent, setPersLowPercent] = useState(20);
-    const [categories, setcategories] = useState(['PR', 'CO', 'OP', 'AD', 'CI'])
-    // const [category, setCategory] = useState('');
-    const [disCategory, setDisCategory] = useState('PR');
-    // const [normalDisCategory, setNormalDisCategory] = useState('CO');
-    // const [prevQuesLowPercent, setPrevQuesLowPercent] = useState(20);
-    // const [prevPersLowPercent, setPrevPersLowPercent] = useState(20);
     const [isloaded, setIsloaded] = useState(false);
-    // const [quesRateClusters, setQuesRateClusters] = useState([]);
-    // const [persRateClusters, setPersRateClusters] = useState([]);
     const [Questions, setQuestions] = useState({weaknesses : [], strenghts : []});
-    const [Groups, setGroups] = useState({ageGroups : [], departmentGroups : []});
-    const [domain, setDomain] = useState({min : 0, max : 0});
+    const [Groups, setGroups] = useState({ageGroups : [], sectorGroups : []});
+    const [domains, setDomains] = useState({radar :{min : 0, max : 0}, sector :{min : 0, max : 0}, age :{min : 0, max : 0}, management :{min : 0, max : 0}, gender :{min : 0, max : 0}});
     const [normalDistributions, setNormalDistributions] = useState({});
     const [dataState, setDataState] = useState({});
     const [CompanyData, setCompanyData] = useState([]);
@@ -52,16 +44,8 @@ const UploadAndDashboardPage = () => {
 
 
     const [processAllData, setProccesAllData] = useState({allDataStats : [], normalDistributions : {}, secNormalDistributions : {}, interpretation : {}, interCompany : {}, context : ''})
-    const categoryColors = {
-        CI: "#0088FE",
-        OP: "#00C49F",
-        PR: "#FFBB28",
-        AD: "#FF8042",
-        CO: "#A020F0",
-    };
 
 
-    // const filtersAll = {Department : '', Age : '', Gender : '', Phase : '',  Maturity : '', Management : ''};
     const [filters, setFilters] = useState({Department : '', Age : '', Gender : '', Phase : '',  Maturity : '', Management : ''});
     const processData = (analysis, fullData, sectorData)=>{
         const dataState = analysis.allData.map(row => ({category : row.category, Company_Av : row.average, Individual_Av : analysis.records[1].Scores[row.category]}));
@@ -73,35 +57,57 @@ const UploadAndDashboardPage = () => {
             item['Sector_Av'] = match2.average;
         }
         )
-        // console.log(dataState);
+
         const keys = ["PR", "CO", "OP", "AD", "CI"];
         const ageGroups = analysis.ageData.map(d => d.age);
-        const transformed = keys.map(key => {
+        const ageD = keys.map(key => {
             const obj = { category: `Av-${key}` };
             analysis.ageData.forEach(d => {
                 obj[d.age] = d[key];
             });
             return obj;
         });
-        const departmentGroups = analysis.departmentData.map(d => d.department);
-        const transformed2 = keys.map(key => {
+        const sectorGroups = analysis.sectorData.map(d => d.sector);
+        const sectorD = keys.map(key => {
             const obj = { category: `Av-${key}` };
-            analysis.departmentData.forEach(d => {
-                obj[d.department] = d[key];
+            analysis.sectorData.forEach(d => {
+                obj[d.sector] = d[key];
             });
             return obj;
         });
-        const allValues = dataState.flatMap(row => [
+        const radarValues = dataState.flatMap(row => [
             row.Company_Av,
             row.All_Av,
             row.Sector_Av,
         ]);
-        setDomain({min : Math.min(allValues), max : Math.max(allValues)});
-        setGroups({ageGroups : ageGroups, departmentGroups : departmentGroups})
-        setDepartmentD(transformed2);
-        // setAllDataStats(analysis.allData);
+        const sectorValues = analysis.sectorData.flatMap(row =>[
+            row['PR'],
+            row['CO'],
+            row['AD'],
+            row['CI'],
+            row['OP'],
+        ])
+        const ageValues = analysis.ageData.flatMap(row =>[
+            row['PR'],
+            row['CO'],
+            row['AD'],
+            row['CI'],
+            row['OP'],
+        ]) 
+        const managementValues = analysis.managementData.flatMap(row =>[
+            row.Yes,
+            row.No
+        ])
+        const genderValues = analysis.genderData.flatMap(row =>[
+            row.Woman,
+            row.Man
+        ])
+        // console.log("hi");
+        setDomains({radar :{min : Math.min(radarValues), max : Math.max(radarValues)}, age : {min : Math.min(ageValues), max : Math.max(ageValues)}, management : {min : Math.min(managementValues), max : Math.max(managementValues)}, gender : {min : Math.min(genderValues), max : Math.max(genderValues)}, sector : {min : Math.min(sectorValues), max : Math.max(sectorValues)}});
+        setGroups({ageGroups : ageGroups, sectorGroups : sectorGroups})
+        setSectorData(sectorD);
         setGenderStats(analysis.genderData);
-        setAgeStats(transformed);
+        setAgeStats(ageD);
         setDataState(dataState)
         setManagementStats(analysis.managementData);
         setDataLoaded(true);
@@ -110,14 +116,14 @@ const UploadAndDashboardPage = () => {
     }
     const fileUpload = async(e) =>
     {
-        const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
+        // const file = e.target.files[0];
+        // const formData = new FormData();
+        // formData.append('file', file);
         try{
-            const uploadRes = await axios.post(`${URL}/api/upload`, formData, {
-                headers: {'Content-Type': 'multipart/form-data'},
-            } );
-            setBatchId(uploadRes.data.batchId);
+            // const uploadRes = await axios.post(`${URL}/api/upload`, formData, {
+            //     headers: {'Content-Type': 'multipart/form-data'},
+            // } );
+            setBatchId(2);
         }
         catch(error)
         {
@@ -129,46 +135,6 @@ const UploadAndDashboardPage = () => {
             }
         }
     }
-    // const quesChangeLowPercent = (e) =>{
-    //     if(e.target.value === quesLowPercent)
-    //         return;
-    //     // if(e.target.value === '0')
-    //     //     setQuesLowPercent('0.0000000000001');
-    //     // else
-    //     setQuesLowPercent(e.target.value);
-    // }
-    // const persChangeLowPercent = (e) =>{
-    //     if(e.target.value === persLowPercent)
-    //         return;
-    //     // if(e.target.value === '0')
-    //     //     setPersLowPercent('0');
-    //     // else
-    //     setPersLowPercent(e.target.value);
-    // }
-    // const reranderQuesLowPersent = async (e) =>
-    // {
-    //     if(e.key ==='Enter') 
-    //     {
-    //         if(quesLowPercent === prevQuesLowPercent)
-    //             return;
-    //         if (quesLowPercent === '0')
-    //             setPrevQuesLowPercent('0.0000000001');
-    //         else
-    //             setPrevQuesLowPercent(quesLowPercent);
-    //     }
-    // }
-    // const reranderPersLowPersent = async (e) =>
-    // {
-    //     if(e.key ==='Enter') 
-    //     {
-    //         if(persLowPercent === prevPersLowPercent)
-    //             return;
-    //         if (persLowPercent === '0')
-    //             setPrevPersLowPercent('0.0000000001');
-    //         else
-    //             setPrevPersLowPercent(persLowPercent);
-    //     }
-    // }
     const filterChange = (e)=>{
         const {name, value} = e.target;
         setFilters(prevFilter => {
@@ -180,59 +146,10 @@ const UploadAndDashboardPage = () => {
         const filterd = values.filter(Boolean);
         return [...new Set(filterd)];
     }
-    // useEffect(()=>{
-    //     const fetchRates = async () =>{
-    //         try{
-    //             const rates = await axios.post(`${URL}/api/person-rate?batchId=${filtred}`, {prevPersLowPercent});
-    //             const Clusters = [];
-    //             Clusters.push(rates.data.highRateCluster);
-    //             Clusters.push(rates.data.midRateCluster);
-    //             Clusters.push(rates.data.lowRateCluster);
-    //             setPersRateClusters(Clusters);
-    //         }
-    //         catch(error)
-    //         {
-    //             if (error.response?.data?.message) {
-    //                 toast.error(error.response.data.message);
-    //                 console.error(error.response.data.message);
-    //             } else {
-    //                 console.error(error.response || error);
-    //             }
-    //         }
-        
-    //     }
-    //     if(isloaded && filtred !== undefined)
-    //         fetchRates();
-    // },[filtred, isloaded, prevPersLowPercent])
-    // useEffect(()=>{
-    //     const fetchRates = async () =>{
-    //         try{
-    //             const rates = await axios.post(`${URL}/api/questions-rate?batchId=${filtred}`, {prevQuesLowPercent, category});
-    //             const Clusters = [];
-    //             Clusters.push(rates.data.highRateCluster);
-    //             Clusters.push(rates.data.midRateCluster);
-    //             Clusters.push(rates.data.lowRateCluster);
-    //             setQuesRateClusters(Clusters);
-
-    //         }
-    //         catch(error)
-    //         {
-    //             if (error.response?.data?.message) {
-    //                 toast.error(error.response.data.message);
-    //                 console.error(error.response.data.message);
-    //             } else {
-    //                 console.error(error.response || error);
-    //             }
-    //         }
-        
-    //     }
-    //     if(isloaded && filtred !== undefined)
-    //         fetchRates();
-    // },[filtred, isloaded, prevQuesLowPercent, category])
-    useEffect(()=>{
+    useDeepCompareEffect(()=>{
         const fetchRates = async () =>{
             try{
-                const rates = await axios.get(`${URL}/api/questions?batchId=${filtred}`);
+                const rates = await axios.post(`${URL}/api/questions?batchId=${batchId}`, {filters});
                 setQuestions({weaknesses : rates.data.weaknesses, strenghts : rates.data.strenghts});
 
             }
@@ -247,9 +164,9 @@ const UploadAndDashboardPage = () => {
             }
         
         }
-        if(isloaded && filtred !== undefined)
+        if(isloaded)
             fetchRates();
-    },[filtred, isloaded])
+    },[filters, isloaded])
     useDeepCompareEffect(()=>{
         const fetchAnalysis = async () =>{
             try
@@ -286,7 +203,7 @@ const UploadAndDashboardPage = () => {
     useDeepCompareEffect(() => {
         const fetchClusters = async () => {
           try {
-            const response = await axios.post(`${URL}/py/clustering`, CompanyData);
+            const response = await axios.post(`http://127.0.0.1:8000/clustering`, CompanyData);
             serClustering({pca : response.data.pca, heatmap : response.data.heatmap, clustersProfile : response.data.clusterProfile});
             // You can now save response.data in state or process it as needed
           } catch (error) {
@@ -298,160 +215,6 @@ const UploadAndDashboardPage = () => {
           fetchClusters();
         }
       }, [CompanyData]);
-    // useEffect(() => {
-    //     if (processAllData) {
-    //       // Process logic here
-    //       console.log('processAllData updated:', processAllData);
-    //     }
-    //   }, [processAllData]);
-    // useEffect(()=>{
-    //     const fetchAnalysis = async () =>{
-    //         try
-    //         {
-    //             const id = 1;
-    //             const analysis = await axios.post(`${URL}/api/analysis?batchId=${batchId}`, {filtersAll, id});
-    //             setProccesAllData({allDataStats : analysis.data.allData,
-    //                 normalDistributions : {OP : analysis.data.OP, CO : analysis.data.CO,  PR: analysis.data.PR, AD: analysis.data.AD, CI : analysis.data.CI}, 
-    //                 interpretation : analysis.data.interpretation});
-    //         }
-    //         catch(error)
-    //         {
-    //             if (error.response?.data?.message) {
-    //                 toast.error(error.response.data.message);
-    //                 console.error(error.response.data.message);
-    //             } else {
-    //                 console.error(error.response || error);
-    //             }
-            
-    //         }
-    //     }
-    //     if (batchId !== '')
-    //     {
-    //         fetchAnalysis();
-    //     }
-    // }, [batchId]);
-    // useEffect(()=>{
-
-    // }, [])
-    // const changeCategory = (e)=>{
-    //     setCategory(e.target.value);
-    // }
-    const disChangeCategory = (e)=>{
-        setDisCategory(e.target.value);
-    }
-    // const normalDistributionsCategory = (e)=>{
-    //     console.log(e.target.value);
-    //     setNormalDisCategory(e.target.value);
-    // }
-    // const lowRateQuesDisplay = (value, name, payload) =>
-    // {
-    //     const data = quesRateClusters.find((b)=> (b.name === name));
-    //     const newData = data.quesData.map(({ _id, batchId, __v, category, high, low, percentLow, percentHigh, total, ...rest }) => rest);
-    //     let val = Number.isInteger(value) ? `${value}%` : `${(value).toFixed(2)}%`;
-    //     if(name === 'low-Rate')
-    //     { 
-    //         return [
-    //             <div key="custom-list">
-    //                 <div>{`${name} : ${val}`}</div>
-    //                 <div>{`count : ${newData.length}`}</div>
-    //                 <h1>questions :</h1>
-    //                 <div className=" flex flex-wrap justify-center gap-2 ">
-    //                 {newData.map((item, idx) => (
-    //                     <div key={idx}>{item.question},</div>
-    //                 ))}
-    //                 </div>
-    //             </div>
-    //         ];
-    //     }
-    //     return[<div key="custom-list">
-    //             <div>{`${name} : ${val}`}</div>
-    //             <div>{`count : ${newData.length}`}</div>
-    //         </div>];
-    // }
-    const chartAreaToolTip = (reportType = "company") => {
-        return function ToolTip({ active, payload, label }) {
-        if (!active || !payload || payload.length === 0) return null;
-        return (
-        <div className=" flex flex-row justify-between w-6/12 flex-wrap bg-white p-1 border-solid" >
-            {payload.map((entry, index) => {
-            let stats;
-            let title = '';
-            
-            if(entry.id === "sectorData")
-            {
-                stats = processAllData.secNormalDistributions[entry.name];
-                title = `Score-${entry.name}`;
-            }
-            else if(entry.id)
-            {
-                stats = normalDistributions[entry.id];
-                title = `${entry.name}`;
-            }
-            else
-            {
-                stats = processAllData.normalDistributions[entry.name];
-                title = `Score-${entry.name}`;
-            }
-            return (
-                <div key={index} className="mt-2">
-                <div><strong> {title}: {(label * 100).toFixed(1)}%</strong></div>
-                <div>Density: {(entry.value * 10).toFixed(1)}%</div>
-                <div>StdDev: {(stats.stdDev * 100).toFixed(1)}%</div>
-                <div>Mean: {(stats.mean * 100).toFixed(1)}%</div>
-                <div>Median: {(stats.median * 100).toFixed(1)}%</div>
-                <div>Variance: {(stats.variance * 100).toFixed(1)}%</div>
-                {reportType !== "company" &&
-                <div className="text-red-600"> {stats.idKpoint.x < stats.mean 
-                    ? ` ${entry.id ? entry.id : entry.name} = ${(stats.idKpoint.x * 100)}% is below the average` 
-                    : `${entry.id ? entry.id : entry.name} = ${stats.idKpoint.x * 100}% is above the average`}</div>}
-                </div>
-            );
-            })}
-        </div>
-        );
-    }
-}
-    // const renderCustomNode = ({ nodeDatum }) => (
-    //     <g>
-    //       <text
-    //         x="0"
-    //         y="0"
-    //         textAnchor="middle"
-    //         alignmentBaseline="middle"
-    //         fontSize="16"
-    //         fontWeight="bold"
-    //         fill="gray"
-    //         stroke="none"
-    //       >
-    //         {nodeDatum.name}
-    //       </text>
-    //     </g>
-    //   );
-    // const lowRatePersDisplay = (value, name, payload) =>
-    //     {
-    //         const data = persRateClusters.find((b)=> (b.name === name));
-    //         const newData = data.persData.map(({ _id, batchId, __v, high, low, percentLow, percentHigh, totalAnswerd, ...rest }) => rest);
-    //         let val = Number.isInteger(value) ? `${value}%` : `${(value).toFixed(2)}%`;
-    //         if(name === 'low-Rate')
-    //         {
-    //             return [
-    //                 <div key="custom-list">
-    //                     <div>{`${name} : ${val}%`}</div>
-    //                     <div>{`count : ${newData.length}`}</div>
-    //                     <h1>personIndex :</h1>
-    //                     <div className=" flex flex-wrap justify-center gap-2">
-    //                     {newData.map((item, idx) => (
-    //                         <div key={idx}>{item.personIndex}, </div>
-    //                     ))}
-    //                     </div>
-    //                 </div>
-    //             ];
-    //         }
-    //         return[<div key="custom-list">
-    //                 <div>{`${name} : ${val}%`}</div>
-    //                 <div>{`count : ${newData.length}`}</div>
-    //             </div>];
-    //     }
     return(
         
         <div className="min-h-screen bg-[black] ">
@@ -466,555 +229,76 @@ const UploadAndDashboardPage = () => {
                         <BsCloudUpload className="  text-gray-600 mb-8 text-6xl"/>
                         <p className="text-2xl mb-4 text-gray-600"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                         <p className="text-1xl mb-4 text-gray-400">(XSLS or XLS files)</p>
-                        <input type="file" accept=".xlsx, .xls" onChange={fileUpload} className="hidden" />
-                        {/* <button onClick={fileUpload}></button> */}
+                        {/* <input type="file" accept=".xlsx, .xls" onChange={fileUpload} className="hidden" /> */}
+                        <button onClick={fileUpload}></button>
                     </label>
                 </div>
             </motion.div>
           ) : (
             <motion.div key="charts" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
             <div className="mt-1 p-6 grid grid-cols-2 gap-6">
-                {['Department' , 'Age' , 'Gender' , 'Phase' ,  'Maturity' , 'Management' ].map((key)=>(
-                    <div key={key}>
-                        <label className="block font-semibold text-white">{key}</label>
-                        <select name={key} value={filters[key]} onChange={filterChange} className="appearance-none bg-white w-full border p-2 rounded">
-                            <option value="">All</option>
-                            {uniqueValues(key).map(val => <option key={val} value={val}>{val}</option>)}
-                        </select>
-                    </div>
-                ))}
-            </div>
-            <div className=" p-6 grid grid-cols-1 gap-10">
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <h2 className="text-xl  text-[#8f8d9f] font-bold mb-2  text-">Company Context</h2>
-                        <div className="w-[100%] h-[105%] text-neutral-400 text flex flex-col justify-start items-center ">
-                            {processAllData.context.split('\n').map((line, index) => (
-                                <p key={index}>{line}</p>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            <div className=" p-6 grid grid-cols-1 gap-10">
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[105%]  flex flex-col justify-start items-center -ml-6">
-                            <ResponsiveContainer width="100%" height="90%">
-                            <h2 className="text-xl  text-[#8f8d9f] font-bold mb-2  text-">Scores Comparison</h2>
-                                <RadarChart width={400} height={300}  data={dataState}>
-                                    <PolarGrid />
-                                    <PolarAngleAxis dataKey="category"/>
-                                    <PolarRadiusAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} domain={[domain.min ,domain.max]}/>
-                                    <Radar name="Company_Av" dataKey="Company_Av" stroke="rgb(220, 28, 68)" fill="rgb(259, 88, 68)" fillOpacity={0.3} />
-                                    {/* <Radar name="Individual_Av" dataKey="Individual_Av" stroke="#ffcf58" fill="#ffc658" fillOpacity={0.3} /> */}
-                                    <Radar name="All_Av" dataKey="All_Av" stroke="#4f8ef7" fill="#4f8ef7" fillOpacity={0.3} />
-                                    <Radar name="Sector_Av" dataKey="Sector_Av" stroke="#4caf7f" fill="#4caf7f" fillOpacity={0.3} />
-                                    <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`}/>
-                                    <Legend />
-                                </RadarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-                <div className="p-6 grid grid-cols-1 gap-10"> 
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[95%]  flex flex-col justify-center items-center -ml-6">
-                            <ResponsiveContainer width="100%" height="100%" >
-                            <h2 className="text-xl text-[#8f8d9f] font-bold mb-2 -mr-9  text-">Gender Bubble Chart</h2>
-                               <ComposedChart width={400}  data={genderStats}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis  type="category" scale="band"  dataKey="category" tick={({ x, y, payload }) => {
-                                        const offset = -80;
-                                        return (
-                                            <g transform={`translate(${x - offset}, ${y + 15})`}>
-                                            <text textAnchor="middle" fill="#666">{payload.value}</text>
-                                            </g>
-                                        );
-                                        }} />
-                                    <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  type="number" />
-                                    <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`}/>
-                                    <Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill="rgb(259, 88, 68)" stroke="rgb(220, 28, 68)" fillOpacity={0.2} />;
-                                            }} name="Man" dataKey="Man" fill="rgb(259, 88, 68)"/>
-                                    <Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill="#ffc658" stroke="#ffcf58" fillOpacity={0.2} />;
-                                            }} name="Woman" dataKey="Woman" fill="#ffc658" />
-                                    {/* <Tooltip /> */}
-                                    <Legend />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[95%]  flex flex-col justify-center items-center -ml-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2 -mr-9 text-">Management Bubble Chart</h2>
-                               <ComposedChart width={400}  data={ManagementStats}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis  type="category" scale="band"  dataKey="category" tick={({ x, y, payload }) => {
-                                        const offset = -80;
-                                        return (
-                                            <g transform={`translate(${x - offset}, ${y + 15})`}>
-                                            <text textAnchor="middle" fill="#666">{payload.value}</text>
-                                            </g>
-                                        );
-                                        }} />
-                                    <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  type="number" />
-                                    <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`}/>
-                                    <Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill="rgb(259, 88, 68)" stroke="rgb(220, 28, 68)" fillOpacity={0.2} />;
-                                            }} name="Yes" dataKey="Yes" fill="rgb(259, 88, 68)"/>
-                                    <Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill="#ffc658" stroke="#ffcf58" fillOpacity={0.2} />;
-                                            }} name="No" dataKey="No" fill="#ffc658" />
-                                    {/* <Tooltip /> */}
-                                    <Legend />
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[95%]  flex flex-col justify-center items-center -ml-6">
-                            <ResponsiveContainer width="100%" height="100%" >
-                            <h2 className="text-xl text-[#8f8d9f] font-bold mb-2 -mr-9  text-">Department Bubble Chart</h2>
-                               <ComposedChart width={400}  data={departmentD}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis  type="category" scale="band"  dataKey="category" tick={({ x, y, payload }) => {
-                                        const offset = -80;
-                                        return (
-                                            <g transform={`translate(${x - offset}, ${y + 15})`}>
-                                            <text textAnchor="middle" fill="#666">{payload.value}</text>
-                                            </g>
-                                        );
-                                        }} />
-                                    <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  type="number" />
-                                    <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`}/>
-                                    {Groups.departmentGroups.map((val, index) => { 
-                                        const hue = (index * 60) % 360; // change step size (e.g., 60) for more/less variation
-                                        const fill = `hsl(${hue}, 70%, 60%)`;
-                                        const stroke = `hsl(${hue}, 90%, 40%)`;
-                                        return (<Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill={fill} stroke={stroke} fillOpacity={0.2} />;
-                                            }} name={val} dataKey={val} fill={fill}/>)})}
-                                    {/* <Tooltip /> */}
-                                    {/* <Legend /> */}
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[95%]  flex flex-col justify-center items-center -ml-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2 -mr-9 text-">Age Bubble Chart</h2>
-                               <ComposedChart width={400}  data={ageStats}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis  type="category" scale="band"  dataKey="category" tick={({ x, y, payload }) => {
-                                        const offset = -80;
-                                        return (
-                                            <g transform={`translate(${x - offset}, ${y + 15})`}>
-                                            <text textAnchor="middle" fill="#666">{payload.value}</text>
-                                            </g>
-                                        );
-                                        }} />
-                                    <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  type="number" />
-                                    <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`}/>
-                                    {Groups.ageGroups.map((val, index) => { 
-                                        const hue = (index * 60) % 360; // change step size (e.g., 60) for more/less variation
-                                        const fill = `hsl(${hue}, 70%, 60%)`;
-                                        const stroke = `hsl(${hue}, 90%, 40%)`;
-                                        return (<Scatter shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={30} fill={fill} stroke={stroke} fillOpacity={0.2} />;
-                                            }} name={val} dataKey={val} fill={fill}/>)})}
-                                    <Legend/>
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    
-            </div>
+                  {['Department' , 'Age' , 'Gender' , 'Phase' ,  'Maturity' , 'Management' ].map((key)=>(
+                      <div key={key}>
+                          <label className="block font-semibold text-white">{key}</label>
+                          <select name={key} value={filters[key]} onChange={filterChange} className="appearance-none bg-white w-full border p-2 rounded">
+                              <option value="">All</option>
+                              {uniqueValues(key).map(val => <option key={val} value={val}>{val}</option>)}
+                          </select>
+                      </div>
+                  ))}
+              </div>
             <div className="p-6 grid grid-cols-1 gap-10"> 
-                <PCACluster data={clustering.pca}/>
-                <div className="w-full px-4 mt-9">
-                    <Explanation data={clustering.clustersProfile} chartType="pca plot" />
+                    <ContextDisplay context={processAllData.context}/>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <RadarChartComponent dataState={dataState} domains={domains} />
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <BubbleChartComponent data={genderStats} domain={domains.gender} groups={["Man", "Woman"]} groupType={"Gender"}/>
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <BubbleChartComponent data={ManagementStats} domain={domains.management} groups={["Yes", "No"]} groupType={"Management"}/>
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <BubbleChartComponent data={sectorData} domain={domains.sector} groups={Groups.sectorGroups} groupType={"Sector"}/>
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>  
+                    <BubbleChartComponent data={ageStats} domain={domains.age} groups={Groups.ageGroups} groupType={"Age"}/>
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <PCACluster data={clustering.pca} profiles={clustering.clustersProfile}/>
+                </Suspense>
+                    <InterpretationComponent interCompany={processAllData.interCompany}/>
+                {/* <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <DistributionChartComp  dataToComp={"NormalDis"} processAllData={processAllData} normalDistributions={normalDistributions} reportType={reportType} />
+                </Suspense> */}
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <HeatmapComponent clustering={clustering}/>
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <BoxPlotComponent normalDistributions={normalDistributions} reportType={reportType} withOutliers={false} />                     
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <DistributionChartScores normalDistributions={normalDistributions} processAllData={processAllData} reportType={reportType} DisType={"Kernel Density"} />
+                </Suspense>
+                {/* <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}> 
+                    <DistributionChartScores normalDistributions={normalDistributions} processAllData={processAllData} reportType={reportType} DisType={"Normal Distributions"} />
+                </Suspense> */}
+                {/* <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <DistributionChartComp  dataToComp={"OverAll"} processAllData={processAllData} normalDistributions={normalDistributions} reportType={reportType} />
+                </Suspense>
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <DistributionChartComp  dataToComp={"Sector"} processAllData={processAllData} normalDistributions={normalDistributions} reportType={reportType} />
+                </Suspense> */}
+                {Questions.strenghts.length !== 0 && <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <QuestionRateComponent Questions={Questions.strenghts} type={"strenghts"}/>
+                </Suspense>}
+                {Questions.weaknesses.length !== 0 && <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <QuestionRateComponent Questions={Questions.weaknesses} type={"weaknesses"}/>
+                </Suspense>}
+                <Suspense fallback={<div className="text-white">Loading Radar Chart...</div>}>
+                    <BoxPlotComponent normalDistributions={normalDistributions} reportType={reportType} withOutliers={true} />
+                </Suspense>
                 </div>
-            </div>
-            <div className="p-6 grid grid-cols-1 gap-10"> 
-                    
-                    {/* <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-">Scores Interpretation</h2>
-                            <div className="w-full h-[90%]">
-                            {Object.entries(processAllData.interpretation).map(([category, values]) => (
-                                <div key={category} className="mb-6 p-4 bg-[#3f3f3f] rounded-md ">
-                                    <h2 className="text-xl text-neutral-400 font-bold mb-2">{category} : {values.exp}</h2>
-                                    <p className="text-neutral-400">{values.res}</p>
-                                </div>
-                                ))}
-                                
-                            </div>
-                        </div>
-                    </div> */}
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-">Company Scores Interpretation</h2>
-                            <div className="w-full h-[90%]">
-                            {Object.entries(processAllData.interCompany).map(([category, values]) => (
-                                <div key={category} className="mb-6 p-4 bg-[#3f3f3f] rounded-md ">
-                                    <h2 className="text-xl text-neutral-400 font-bold mb-2">{category} : {values.exp}</h2>
-                                    <p className="text-neutral-400">{values.res}</p>
-                                </div>
-                                ))}
-                                
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-">Normal Distributions vs Kernel Density</h2>
-                            <div className="w-full h-[90%]">
-                                <div>
-                                <label className="block font-semibold text-[#f9f9f9]"> category</label>
-                                    <select name="categories" onChange={disChangeCategory} value={disCategory} className="appearance-none bg-white mt-3 border p-2 pr-8 rounded">
-                                        <option value="PR">PR</option>
-                                        {categories.map((key) => (<option key={key} value={key}>{key}</option>))}
-                                    </select>
-                                </div>
-                                <ResponsiveContainer width="100%"  height="90%">
-                                    <AreaChart className=" mt-6 -ml-6" >
-                                        <CartesianGrid strokeDasharray="5 5" />
-                                        <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                                        <YAxis tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} type="number" domain={[0, 4]}/>
-                                        <Tooltip content={chartAreaToolTip()}/>
-                                        <Area type="monotone"  dataKey="y" data={normalDistributions[disCategory].kpoints} name={disCategory} stroke={categoryColors[disCategory]} fill={categoryColors[disCategory] + 70} />
-                                        <Area type="monotone"  dataKey="y" data={normalDistributions[disCategory].points} name={disCategory} stroke={categoryColors[disCategory] + 90} fill={categoryColors[disCategory] + 100} />
-                                        <Legend />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-"> Correlation Matrix of KPI Scores</h2>
-
-                            {!clustering?.heatmap?.data ? <div>Loading heatmap...</div> : 
-                            <Plot
-                                data={[
-                                    {
-                                    z: clustering.heatmap.data,
-                                    x: clustering.heatmap.x,
-                                    y: clustering.heatmap.y,
-                                    type: "heatmap",
-                                    colorscale: "RdBu",
-                                    zmin: -1,
-                                    zmax: 1,
-                                    text: clustering.heatmap.data.map(row => row.map(val => (val * 100).toFixed(0))), // matrix of values as text
-                                    texttemplate: "%{text} %", // tell Plotly to use text directly
-                                    textfont: {
-                                        size: 12,
-                                        color: "white", // or "black", depending on your color scale
-                                    },
-                                    },
-                                ]}
-                                layout={{
-                                    title: "Correlation Matrix",
-                                    width: 700,
-                                    height: 600,
-                                    paper_bgcolor: "rgba(0,0,0,0)", // transparent background
-                                    plot_bgcolor: "white",  // transparent plot area
-                                    margin: { l: 50, r: 50, t: 50, b: 50 },
-                                    xaxis: {
-                                      showgrid: false,
-                                      zeroline: false,
-                                    },
-                                    yaxis: {
-                                      showgrid: false,
-                                      zeroline: false,
-                                    },
-                                  }}
-                                  config={{
-                                    displayModeBar: false,    // hides the toolbar (zoom, pan, etc.)
-                                    staticPlot: true,         // disables all interactivity (no zoom, no hover)
-                                    responsive: true,
-                                  }}
-                                />}
-                                <div className="w-full px-4 mt-9">
-                                    <Explanation data={clustering.heatmap} chartType="heatmap plot" />
-                                </div>
-                        </div>
-                     </div>
-                     <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[100%]  flex flex-col justify-start items-center">
-                            <ResponsiveContainer width="100%" >
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Box Plot of Scores</h2>
-                                <div className="mt-9">
-                                    <ApexChart normalDistributions={normalDistributions} reportType={reportType} withOutliers={false} />
-                                    <Explanation data={normalDistributions} chartType="box plot"/>
-                                </div>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-"> Kernel Density Estimation of Scores</h2>
-                            <div className="w-full h-[500px]">
-                                <ResponsiveContainer width="100%"  height="95%">
-                                    <AreaChart className=" mt-6 -ml-6" >
-                                        <CartesianGrid strokeDasharray="5 5" />
-                                        <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                                        <YAxis tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} type="number" domain={[0, 4]}/>
-                                        <Tooltip 
-                                        content={chartAreaToolTip()}
-                                        />
-                                        {categories.map((category)=>(
-                                            <Area type="monotone"  dataKey="y" data={normalDistributions[category].kpoints} name={category} stroke={categoryColors[category]} fill={categoryColors[category] + 70} />
-                                            
-                                        ))}
-                                        <Legend />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="w-full px-4 mt-9">
-                                <Explanation data={normalDistributions} chartType="kde plot" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-">Normal Distributions of Scores</h2>
-                            <div className="w-full h-[500px]">
-                                <ResponsiveContainer width="100%"  height="95%">
-                                    <ComposedChart className=" mt-6 -ml-6" >
-                                        <CartesianGrid strokeDasharray="5 5" />
-                                        <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                                        <YAxis dataKey="y" tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} type="number" domain={[0, 4]}/>
-                                        <Tooltip 
-                                        content={chartAreaToolTip()}
-                                        />
-                                        {categories.map((category)=>(
-                                            <Area type="monotone"  dataKey="y" data={normalDistributions[category].points} name={category} stroke={categoryColors[category]} fill={categoryColors[category] + 70} />
-                                            
-                                        ))}
-                                        <Legend />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div className="w-full px-4 mt-9">
-                                <Explanation data={normalDistributions} chartType="normal distribution plot" />
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-"> Overall vs Company-Specific Score Distributions</h2>
-                            <div className="w-full h-[90%]">
-                                <div>
-                                <label className="block font-semibold text-[#f9f9f9]"> category</label>
-                                    <select name="categories" onChange={disChangeCategory} value={disCategory} className="appearance-none bg-white mt-3 border p-2 pr-8 rounded">
-                                        {/* <option value="PR">PR</option> */}
-                                        {categories.map((key) => (<option key={key} value={key}>{key}</option>))}
-                                    </select>
-                                </div>
-                                {processAllData.normalDistributions[disCategory] && normalDistributions[disCategory] && (<ResponsiveContainer width="100%"  height="90%">
-                                    <ComposedChart className=" mt-6 -ml-6" >
-                                        <CartesianGrid strokeDasharray="5 5" />
-                                        <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                                        <YAxis tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} dataKey="y" type="number" domain={[0, 4]}/>
-                                        <Tooltip content={chartAreaToolTip()}/>
-                                        <Area type="monotone"  dataKey="y" data={normalDistributions[disCategory].kpoints} id={disCategory} name={`company-${disCategory}`} stroke={categoryColors[disCategory]} fill={categoryColors[disCategory] + 70} />
-                                        <Area type="monotone"  dataKey="y" data={processAllData.normalDistributions[disCategory].kpoints} name={disCategory} stroke={categoryColors[disCategory] + 90} fill={categoryColors[disCategory] + 100} />
-                                        {reportType !== "company" &&<> <Scatter
-                                            data={[{ x: processAllData.secNormalDistributions[disCategory].idKpoint.x, y : processAllData.secNormalDistributions[disCategory].idKpoint.y }]}
-                                            fill="red"
-                                            shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={7} fill="red" />;
-                                            }}
-                                            name="Individual-data"
-                                            />
-                                        <Scatter
-                                            data={[{ x: normalDistributions[disCategory].idKpoint.x, y : normalDistributions[disCategory].idKpoint.y }]}
-                                            shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={7} fill="green" />;
-                                            }}
-                                            name="Individual-company"
-                                            fill='green'
-                                        /></>}
-                                        <Legend />
-                                        <Legend />
-                                    </ComposedChart>
-                                </ResponsiveContainer>)}
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold  text-"> sector vs Company-Specific Score Distributions</h2>
-                            <div className="w-full h-[90%]">
-                                <div>
-                                <label className="block font-semibold text-[#f9f9f9]"> category</label>
-                                    <select name="categories" onChange={disChangeCategory} value={disCategory} className="appearance-none bg-white mt-3 border p-2 pr-8 rounded">
-                                        {/* <option value="PR">PR</option> */}
-                                        {categories.map((key) => (<option key={key} value={key}>{key}</option>))}
-                                    </select>
-                                </div>
-                                {processAllData.secNormalDistributions[disCategory] && normalDistributions[disCategory] && (<ResponsiveContainer width="100%"  height="90%">
-                                    <ComposedChart className=" mt-6 -ml-6" >
-                                        <CartesianGrid strokeDasharray="5 5" />
-                                        <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                                        <YAxis tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} dataKey="y" type="number" domain={[0, 4]}/>
-                                        <Tooltip content={chartAreaToolTip()}/>
-                                        <Area type="monotone"  dataKey="y" data={normalDistributions[disCategory].kpoints} id={disCategory} name={`company-${disCategory}`} stroke={categoryColors[disCategory]} fill={categoryColors[disCategory] + 70} />
-                                        <Area type="monotone"  dataKey="y" data={processAllData.secNormalDistributions[disCategory].kpoints} id="sectorData" name={disCategory} stroke={categoryColors[disCategory] + 90} fill={categoryColors[disCategory] + 100} />
-                                        {reportType !== "company" &&<> <Scatter
-                                            data={[{ x: processAllData.secNormalDistributions[disCategory].idKpoint.x, y : processAllData.secNormalDistributions[disCategory].idKpoint.y }]}
-                                            fill="red"
-                                            shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={7} fill="red" />;
-                                            }}
-                                            name="Individual-data"
-                                            />
-                                        <Scatter
-                                            data={[{ x: normalDistributions[disCategory].idKpoint.x, y : normalDistributions[disCategory].idKpoint.y }]}
-                                            shape={({ cx, cy, payload }) => {
-                                                return <circle cx={cx} cy={cy} r={7} fill="green" />;
-                                            }}
-                                            name="Individual-company"
-                                            fill='green'
-                                        /></>}
-                                        <Legend />
-                                        <Legend />
-                                    </ComposedChart>
-                                </ResponsiveContainer>)}
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold mb-3  text-">Company Weaknesses</h2>
-                            <div className="w-full h-[90%]">
-                            {Questions.weaknesses.map((val, key) => (
-                                <div key={key} className="mb-6 text-neutral-400 p-4 bg-[#3f3f3f] rounded-md ">
-                                   { val.split('\n').map((line, index) => (
-                                        <ReactMarkdown key={index}>{line}</ReactMarkdown>
-                                    ))}
-                                    </div>
-                                ))}
-                                
-                            </div>
-                        </div>
-                    </div>
-                    <div className=" bg-[#161616] rounded-2xl shadow p-4">
-                        <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
-                            <h2 className="text-xl text-[#8f8d9f] font-bold mb-3  text-">Company Strenghts</h2>
-                            <div className="w-full h-[90%]">
-                            {Questions.strenghts.map((val, key) => (
-                                <div key={key} className="mb-6 text-neutral-400 p-4 bg-[#3f3f3f] rounded-md ">
-                                   { val.split('\n').map((line, index) => (
-                                        <ReactMarkdown key={index}>{line}</ReactMarkdown>
-                                    ))}
-                                    </div>
-                                ))}
-                                
-                            </div>
-                        </div>
-                    </div>
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[100%] h-[100%]  flex flex-col justify-start items-center">
-                            <ResponsiveContainer width="100%" >
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Box Plot of Scores</h2>
-                                <div className="mt-9">
-                                    <ApexChart normalDistributions={normalDistributions} reportType={reportType} withOutliers={true} />
-                                    <Explanation data={normalDistributions} chartType="plot box" outliers={true}/>
-                                </div>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-                
-                {/* <div className="p-6 grid grid-cols-2 gap-10"> 
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[115%] h-[105%]  flex flex-col justify-start items-center -ml-6">
-                            <ResponsiveContainer width="85%" height="75%">
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Questions rate clustering</h2>
-                                    <div className="flex flex-row justify-around">
-                                        <div>
-                                        <label className="block font-semibold text-[#f9f9f9]"> category</label>
-                                            <select name="categories" onChange={changeCategory} value={category} className="appearance-none bg-white mt-3 border p-2 pr-8 rounded">
-                                                <option value="">All</option>
-                                                {categories.map((key) => (<option key={key} value={key}>{key}</option>))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block font-semibold text-[#f9f9f9]">LR percentage</label>
-                                            <input type="number" min="0" max="100" value={quesLowPercent} onChange={quesChangeLowPercent} onKeyDown={reranderQuesLowPersent} placeholder="Low percent" className="appearance-none mt-3 bg-whitel border p-2 rounded">
-                                            </input>
-                                        </div>
-
-                                    </div>
-                                <PieChart>
-                                    <Pie
-                                        dataKey="ratePercent"
-                                        isAnimationActive={true}
-                                        data={quesRateClusters}
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={150}
-                                        stroke="#000000"
-                                        label={(entry)=> { 
-                                            let value = Number.isInteger(entry.value) ? `${entry.value}%` : `${(entry.value).toFixed(2)}%`;
-                                            return (value)}}
-                                        className=" cursor-pointer"
-                                    >
-                                        <Cell key={`cell-${1}`} fill="#a4de6c"/>
-                                        <Cell key={`cell-${2}`} fill="#ffc658" />
-                                        <Cell key={`cell-${3}`} fill="rgb(259, 88, 68)" />
-                                    </Pie>
-                                    <Tooltip formatter={lowRateQuesDisplay} />
-                                    <Legend iconSize={20}
-                                        iconType="circle"
-                                        />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
-                        <div className="w-[115%] h-[105%]  flex flex-col justify-start items-center -ml-6">
-                            <ResponsiveContainer width="85%" height="75%">
-                                <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Person rate clustering</h2>
-                                    <div className="flex flex-row justify-around">
-                                        <div>
-                                            <label className="block font-semibold text-[#f9f9f9]">LR percentage</label>
-                                            <input type="number" min="0" max="100" value={persLowPercent} onChange={persChangeLowPercent} onKeyDown={reranderPersLowPersent} placeholder="Low percent" className="appearance-none mt-3 bg-whitel border p-2 rounded">
-                                            </input>
-                                        </div>
-
-                                    </div>
-                                <PieChart>
-                                    <Pie
-                                        dataKey="ratePercent"
-                                        isAnimationActive={true}
-                                        data={persRateClusters}
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={150}
-                                        stroke="#000000"
-                                        label={(entry)=> { 
-                                            let value = Number.isInteger(entry.value) ? `${entry.value}%` : `${(entry.value).toFixed(2)}%`;
-                                            return (value)}}
-                                        className=" cursor-pointer"
-                                    >
-                                        <Cell key={`cell-${1}`} fill="#9be8d9"/>
-                                        <Cell key={`cell-${2}`} fill="#f8fdcf" />
-                                        <Cell key={`cell-${3}`} fill="#ff9a9b" />
-                                    </Pie>
-                                    <Tooltip formatter={lowRatePersDisplay} />
-                                    <Legend iconSize={20}
-                                        iconType="circle"
-                                        />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    
-            </div> */}
           </motion.div>
           )}
           </AnimatePresence>
