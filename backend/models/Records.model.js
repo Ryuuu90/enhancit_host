@@ -6,6 +6,7 @@ const RecordData = new mongoose.Schema({
         required: true,
         index: true
     },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
     Gender : String, 
     Management : String,
     Age : String,

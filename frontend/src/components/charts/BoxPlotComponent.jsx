@@ -2,7 +2,7 @@ import ReactApexChart from "react-apexcharts";
 import Explanation from "../insights/chartExpComp";
 import { ResponsiveContainer} from "recharts";
 import React from "react";
-const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers }) => {
+const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers, title , language}) => {
 
   const series = [
     {
@@ -14,15 +14,14 @@ const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers }) => 
         const baseData = {
           x: key === "KBICONSO" ? key : `Score-${key}`,
           y: [
-            +((dist.q1 - 1.5 * iqr) * 100).toFixed(1),
+            +((dist.q1 - 1.5 * iqr) * 100).toFixed(0),
             +(dist.q1 * 100).toFixed(1),
             +(dist.median * 100).toFixed(1),
             +(dist.q3 * 100).toFixed(1),
-            +(dist.max * 100).toFixed(1)
+            +((dist.q3 + 1.5 * iqr) * 100).toFixed(0)
           ],
         };
 
-        // Conditionally add 'goals' only if withOutliers is true
         if (withOutliers) {
           baseData.goals = Array.isArray(dist.outliers)
             ? dist.outliers.map((outlier) => ({
@@ -57,7 +56,6 @@ const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers }) => 
   const options = {
     chart: {
       type: 'boxPlot',
-      // height: 500,
       toolbar: { show: false },
       zoom: { enabled: false },
       foreColor: '#656565'
@@ -121,12 +119,12 @@ const BoxPlotComponent = ({ normalDistributions, reportType, withOutliers }) => 
           <div className="  bg-[#161616] rounded-2xl shadow p-4  ">
                 <div className="w-[100%] h-[100%]  flex flex-col justify-start items-center">
                       <ResponsiveContainer width="100%" >
-                          <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">Box Plot of Scores</h2>
+                          <h2 className="text-xl text-[#8f8d9f] font-bold mb-2  text-">{title}</h2>
                           <div className="mt-9">
                               <div id="chart">
                                   <ReactApexChart options={options} series={series} type="boxPlot" height={500} />
                               </div>
-                              <Explanation data={normalDistributions} chartType="Box plot"/>
+                              <Explanation data={normalDistributions} chartType="Box plot" outliers={withOutliers}  lang={language}/>
                           </div>
                       </ResponsiveContainer>
                   </div>

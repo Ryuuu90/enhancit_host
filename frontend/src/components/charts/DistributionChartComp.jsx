@@ -31,7 +31,6 @@ const  DistributionChartComp = ({dataToComp,normalDistributions, processAllData 
       setDisCategory(e.target.value);
   }
 
-  // console.log(dataToComp);
   return (  <div className=" bg-[#161616] rounded-2xl shadow p-4">
     <div className="w-[100%] h-[100%]   flex flex-col justify-start items-center">
         {dataToComp !== "NormalDis" && (<h2 className="text-xl text-[#8f8d9f] font-bold  text-"> {dataToComp} vs Company-Specific Score Distributions</h2>)}
@@ -47,8 +46,8 @@ const  DistributionChartComp = ({dataToComp,normalDistributions, processAllData 
             {data[disCategory] && normalDistributions[disCategory] && (<ResponsiveContainer width="100%"  height="90%">
                 <ComposedChart className=" mt-6 -ml-6" >
                     <CartesianGrid strokeDasharray="5 5" />
-                    <XAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
-                    <YAxis tickFormatter={tick => `${(tick * 10).toFixed(0)}%`}  ticks={[1, 2,3, 4]} dataKey="y" type="number" domain={[0, 4]}/>
+                    <XAxis tickFormatter={(value) => `${(value).toFixed(0)}%`}  dataKey="x"  type="number" domain={[0, 1]}  />
+                    <YAxis tickFormatter={tick => `${(tick).toFixed(0)}%`}  ticks={[1, 2,3, 4]} dataKey="y" type="number" domain={[0, 4]}/>
                     <Tooltip content={chartAreaToolTip(reportType, normalDistributions, processAllData)}/>
                     <Area type="monotone"  dataKey="y" data={normalDistributions[disCategory].kpoints} id={disCategory} name={`company-${disCategory}`} stroke={categoryColors[disCategory]} fill={categoryColors[disCategory] + 70} />
                     {dataToComp != "NormalDis" && (  <Area type="monotone"  dataKey="y" data={data[disCategory].kpoints} name={disCategory} stroke={categoryColors[disCategory] + 90} fill={categoryColors[disCategory] + 100} />)}

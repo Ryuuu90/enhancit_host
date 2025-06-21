@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Dict, Any
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -47,14 +49,14 @@ async def analyze(data: List[Dict[str, Any]]):
     z_scores = pd.DataFrame(zscore(kpi_data), columns=kpi_data.columns)
     outlier_mask = (z_scores.abs() > 3).any(axis=1)
 
-    inliers_mask = (~outlier_mask_Q | ~outlier_mask)
+    inliers_mask = (~(outlier_mask_Q & outlier_mask))
     inliers_data = kpi_data[inliers_mask]
 
     if len(inliers_data) < 3:
         raise HTTPException(status_code=400, detail="Not enough valid data points to perform clustering.")
 
     silhouette_scores = []
-    for k in range(3, 10):
+    for k in range(3, 4):
         if len(inliers_data) < k:
             silhouette_scores.append(-1)
             continue
@@ -76,9 +78,7 @@ async def analyze(data: List[Dict[str, Any]]):
     df_valid.loc[inliers_data.index, 'Cluster_Q'] = labels
 
     # Mark clusters with fewer than 8 points as Outlier
-    print(len(inliers_data))
     points_numc = (len(inliers_data)/ best_k) / 2
-    print(points_numc)
     cluster_counts = df_valid.loc[inliers_data.index].groupby('Cluster_Q').size()
     small_clusters = cluster_counts[cluster_counts < points_numc].index.tolist()
     mask_small_clusters = df_valid['Cluster_Q'].isin(small_clusters)
@@ -87,7 +87,7 @@ async def analyze(data: List[Dict[str, Any]]):
     filtered_inliers_data = inliers_data.loc[filtered_inliers_index]
 
     kpi_columns = ['Score-Pr', 'Score-Co', 'Score-Op', 'Score-Ad', 'Score-Ci', 'KBICONSO']
-    cluster_profiles = (df_valid.groupby('Cluster_Q')[kpi_columns].mean() * 100).round(2).astype(str) + '%'
+    cluster_profiles = (df_valid.groupby('Cluster_Q')[kpi_columns].mean()).round(1).astype(str) + '%'
 
     demographic_columns = ['Age', 'Gender', 'Management']
     percentage_dfs = []
@@ -106,7 +106,7 @@ async def analyze(data: List[Dict[str, Any]]):
     demographic_percentages = pd.concat(percentage_dfs, axis=1)
     full_cluster_profile = pd.concat([cluster_profiles, demographic_percentages], axis=1)
 
-    decile_columns = [f'{col}_decile' for col in kpi_columns]
+    decile_columns = [f'{col}_quartiles' for col in kpi_columns]
     decile_dfs = []
 
     for col in decile_columns:

@@ -34,7 +34,6 @@ function runPythonScript(data) {
 exports.clustering = async (req, res) => {
     try {
       const data = req.body;
-      console.log(data)
       const result = await runPythonScript(data); // a function returning a Promise
       res.json(result);
     } catch (err) {

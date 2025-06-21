@@ -23,6 +23,8 @@ const userResponseSchema = new mongoose.Schema({
     questionTextAng: String,
     categoryAngShort: String
   }],
+  clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: false },
+
   categoryScores: [{
     categoryAng: String,
     categoryAngShort: String,

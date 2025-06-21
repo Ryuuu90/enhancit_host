@@ -14,29 +14,37 @@ import {
   Legend
 } from 'recharts';
 
-const BubbleChartComponent = ({data, domain, groups, groupType }) => {
-  // const [Groups, setGroups] = useState([]);
+const BubbleChartComponent = ({data, domain, groups, groupType , title }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
-
   
-  useEffect(() => {
-    console.log('[BubbleChartComponent] rendered');
-  }, []);
   const visibleGroups = useMemo(() => {
     return selectedGroup ? [selectedGroup] : groups;
   }, [selectedGroup, groups]);
   
   const colorMap = useMemo(() => {
     const map = {};
+    if(groupType === "Gender")
+    {
+        const baseHues = [220, 330];
+        visibleGroups.forEach((val, index) => {
+          const hue = baseHues[index % 2] + Math.floor(index / 2) * 30;
+          map[val] = {
+            fill: `hsl(${hue % 360}, 70%, 60%)`,
+            stroke: `hsl(${hue % 360}, 90%, 40%)`
+          };
+        });
+      }
+      else
+     { 
       visibleGroups.forEach((val, index) => {
       const hue = index * 60;
       map[val] = {
         fill: `hsl(${hue}, 70%, 60%)`,
         stroke: `hsl(${hue}, 90%, 40%)`
       };
-    });
+    });}
     return map;
-  }, [visibleGroups]);
+  }, []);
   const getScatter = (name, color, stroke) => (
     <Scatter
       name={name}
@@ -82,21 +90,15 @@ const BubbleChartComponent = ({data, domain, groups, groupType }) => {
   
   const filterScatter = (e) => {
     const group = e.dataKey;
-    if (selectedGroup === group) {
-      // Second click on same group → reset
-      // setGroups(groups);
+    if (selectedGroup === group) 
       setSelectedGroup(null);
-    } else {
-      // First click → show only clicked group
-      // setGroups([group]);
+    else
       setSelectedGroup(group);
-    }
   }
-  console.log(data);
   return (
     <div className="bg-[#161616] rounded-2xl shadow p-6">
   <div className="w-full flex flex-col items-center">
-    <h2 className="text-xl text-[#8f8d9f] font-bold mb-4">{groupType} Bubble Chart</h2>
+    <h2 className="text-xl text-[#8f8d9f] font-bold mb-4">{title}</h2>
     
     <div className="w-full h-[600px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -114,7 +116,7 @@ const BubbleChartComponent = ({data, domain, groups, groupType }) => {
             interval={0}
           />
           <YAxis 
-            tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+            tickFormatter={(value) => `${(value).toFixed(0)}%`}
             domain={[domain.min - 0.02, domain.max + 0.02]}
             type="number"
             axisLine={false}
@@ -122,7 +124,7 @@ const BubbleChartComponent = ({data, domain, groups, groupType }) => {
             tick={{ dx: -25, dy: 0 }}
             interval={0}
           />
-          <Tooltip formatter={(value) => `${(value * 100).toFixed(1)}%`} />
+          <Tooltip formatter={(value) => `${(value)}%`} />
           
           {memoizedScatters}
 
@@ -136,7 +138,7 @@ const BubbleChartComponent = ({data, domain, groups, groupType }) => {
   </div>
 
   <div className="w-full mt-10 px-4">
-    <Explanation data={data} chartType="bubble chart" />
+    <Explanation data={data} chartType="bubble chart" groups={groups} groupType={groupType} />
   </div>
 </div>
 

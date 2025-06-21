@@ -24,7 +24,7 @@ const chartAreaToolTip = (reportType = "company", normalDistributions, processAl
         }
         return (
             <div key={index} className="mt-2">
-            <div><strong> {title}: {(label * 100).toFixed(1)}%</strong></div>
+            <div><strong> {title}: {(label * 1).toFixed(0)}%</strong></div>
             <div>Density: {(entry.value * 10).toFixed(1)}%</div>
             <div>StdDev: {(stats.stdDev * 100).toFixed(1)}%</div>
             <div>Mean: {(stats.mean * 100).toFixed(1)}%</div>

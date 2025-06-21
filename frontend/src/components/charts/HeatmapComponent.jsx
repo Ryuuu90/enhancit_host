@@ -21,11 +21,11 @@ return (
                                     colorscale: "RdBu",
                                     zmin: -1,
                                     zmax: 1,
-                                    text: clustering.heatmap.data.map(row => row.map(val => (val * 100).toFixed(0))), // matrix of values as text
-                                    texttemplate: "%{text} %", // tell Plotly to use text directly
+                                    text: clustering.heatmap.data.map(row => row.map(val => (val * 100).toFixed(0))),
+                                    texttemplate: "%{text}%",
                                     textfont: {
                                         size: 12,
-                                        color: "white", // or "black", depending on your color scale
+                                        color: "white",
                                     },
                                     },
                                 ]}
@@ -33,8 +33,8 @@ return (
                                     title: "Correlation Matrix",
                                     width: 700,
                                     height: 600,
-                                    paper_bgcolor: "rgba(0,0,0,0)", // transparent background
-                                    plot_bgcolor: "white",  // transparent plot area
+                                    paper_bgcolor: "rgba(0,0,0,0)",
+                                    plot_bgcolor: "white", 
                                     margin: { l: 50, r: 50, t: 50, b: 50 },
                                     xaxis: {
                                       showgrid: false,
@@ -46,9 +46,9 @@ return (
                                     },
                                   }}
                                   config={{
-                                    displayModeBar: false,    // hides the toolbar (zoom, pan, etc.)
-                                    staticPlot: true,         // disables all interactivity (no zoom, no hover)
-                                    responsive: true,
+                                    displayModeBar: false,    
+                                    staticPlot: false,       
+                                    responsive: false,
                                   }}
                                 />}
                                 <div className="w-full px-4 mt-9">

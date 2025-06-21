@@ -6,12 +6,12 @@ const path = require('path');
 const xlsx = require('xlsx');
 const { v4: uuidv4 } = require('uuid');
 
-// const mongoose = require('mongoose');
-// const mango = require('mongoose');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 dotenv.config();
 let isConnected = false;
+
+const DEFAULT_CLIENT_ID = '666abc123def4567890abcde';
 
 const connectDB = async () => {
   if (isConnected) return;
@@ -19,8 +19,8 @@ const connectDB = async () => {
   await mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    bufferCommands: false, // prevents operations from being buffered when not connected
-    serverSelectionTimeoutMS: 10000, // Adjust based on needs
+    bufferCommands: false, 
+    serverSelectionTimeoutMS: 10000,
   }).then(console.log("connect to nhancit database too"));
 
   isConnected = true;
@@ -32,12 +32,11 @@ const average = (arr) =>{
         return 0;
     const sum = arr.reduce((a,b)=> a + b, 0);
     const avg = sum / arr.length;
-    return +avg.toFixed(6);
+    return +avg.toFixed(1);
 }
 
 
 const Analysing = (data, allAnalysis) =>{
-        // console.log(data);
         const categories = ['PR', 'CO', 'OP', 'AD', 'CI'];
         const genderData = [];
         const allData = [];
@@ -135,18 +134,12 @@ const renderTemplate = (template, variables) => {
   }
 
 const formatScore = (num) => {
-const percentage = num * 100;
+const percentage = num;
 return Number.isInteger(percentage)
     ? `${percentage}%`
-    : `${percentage.toFixed(2)}%`;
+    : `${percentage.toFixed(1)}%`;
 };
 const companyContext = async (data) => {
-    // const workbook = xlsx.readFile(path.join(__dirname, '../public', 'Company_Context.xlsx'));
-    // const sheet = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-    // sheet.forEach(async (row) => {
-    // const { Sector, Priorities, Key1 , Key2, Key3, Paragraph } = row;
-    //     await Context.create({ Industry : Sector, Data : {Priorities : Priorities, Key1 : Key1, Key2 : Key2, Key3 : Key3, Paragraph : Paragraph}})
-    // });
     const context = await Context.findOne({Industry : data[0].Sector});
     const variables = {Sector : data[0].Sector, Maturity : data[0].Maturity, Phase : data[0].Phase, Priorities : context.Data.Priorities,
         Key1 : context.Data.Key1, Key2 : context.Data.Key2, Key3 : context.Data.Key3 };
@@ -154,21 +147,6 @@ const companyContext = async (data) => {
     return result;
 }
 const analysisInterpretation = async (data, scores, isIndiv) =>{
-    // const workbook = xlsx.readFile(path.join(__dirname, '../public', 'inter.xlsx'));
-    // const sheet = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-    // const categories = ['KBICONSO', 'PR', 'CO', 'OP', 'AD', 'CI'];
-    // const interpretation = Object.fromEntries(categories.map(cat => [cat, { low: '', high: '', exp  : '' }]));
-    // sheet.forEach(row => {
-    // const { category, low, high , exp} = row;
-    // if (interpretation[category]) {
-    //     interpretation[category].low = low;
-    //     interpretation[category].high = high;
-    //     interpretation[category].exp = exp;
-
-    // }
-    // });
-    // console.log(interpretation);
-    // await Interpretation.create(interpretation)
     let inter;
     if(isIndiv)
         inter = await Interpretation.find();
@@ -200,7 +178,8 @@ const analysisInterpretation = async (data, scores, isIndiv) =>{
 
 }
 
-const normalDistribution = (scores, idScore) => {
+const normalDistribution = (scoresPer, idScore) => {
+        const scores = scoresPer.map(s => s / 100);
         const mean = ss.mean(scores);
         const median = ss.median(scores);
         const variance = ss.variance(scores);
@@ -212,7 +191,8 @@ const normalDistribution = (scores, idScore) => {
         const q3 = ss.quantileSorted(sorted, 0.75);
         const iqr = q3 - q1;
         const Qmin = parseFloat((q1 - 1.5 * iqr).toFixed(2))
-        const Qoutliers = scores.filter(score => (score < Qmin))
+        const Qmax = parseFloat((q3 + 1.5 * iqr).toFixed(2))
+        const Qoutliers = scores.filter(score => (score < Qmin || score > Qmax))
         const Zoutliers = scores.filter(score => {
             const z = (score - mean) / stdDev;
             return Math.abs(z) > 3;
@@ -226,7 +206,7 @@ const normalDistribution = (scores, idScore) => {
         };
         const points = [];
         for (let x = 0; x <= max +0.01 ; x += 0.01) {
-            points.push({ x: x.toFixed(2), y: pdf(x) });
+            points.push({ x: (x * 100).toFixed(1) , y: pdf(x) });
         }
         
 
@@ -244,7 +224,7 @@ const normalDistribution = (scores, idScore) => {
         
         const kpoints = [];
         for (let x = 0; x <= max + 0.01; x+=0.01) {
-            kpoints.push({ x: x, y: densityAt(x) });
+            kpoints.push({ x: (x * 100).toFixed(1), y: densityAt(x) });
         }
         const idKpoint = {x : idScore, y : densityAt(idScore)};
         return {
@@ -264,17 +244,13 @@ const normalDistribution = (scores, idScore) => {
         };
 }
 function transformSurveyData(inputData) {
-    // Helper function to map French answers to English
-  
-    // Extract basic demographic info
+
     const demographicInfo = {};
     const questionCategories = { PR: {}, CO: {}, OP: {}, AD: {}, CI: {} };
     
-    // Process responses
     inputData.responses.forEach(response => {
       const { questionId, answerTextAng, score, categoryAngShort } = response;
       
-      // Handle demographic questions (1-9)
     if (questionId <= 9) {
         switch (questionId)
         {
@@ -294,23 +270,20 @@ function transformSurveyData(inputData) {
                 demographicInfo.Company = answerTextAng;
                 break;
             case 6:
-                demographicInfo.Sector = answerTextAng;
+                demographicInfo.Sector = answerTextAng.trim();
                 break;
             case 8:
-                demographicInfo.Phase = answerTextAng;
+                demographicInfo.Phase = answerTextAng.toLowerCase();
                 break;
             case 9:
                 demographicInfo.Maturity = answerTextAng;
                 break;
         }
       } else {
-        // Handle survey questions (10+)
         const categoryShort = categoryAngShort.toUpperCase();
         const categoryShortLow = categoryAngShort;
 
-        // console.log(categoryShort);
         if (questionCategories[categoryShort]) {
-          // Calculate question number within category
           const categoryQuestions = inputData.responses.filter(r => 
             r.categoryAngShort === categoryShortLow && r.questionId >= 10
           );
@@ -323,18 +296,17 @@ function transformSurveyData(inputData) {
       }
     });
   
-    // Calculate normalized scores (0-1 scale)
     const normalizedScores = {};
     inputData.categoryScores.forEach(category => {
       const categoryShort = category.categoryAngShort.toUpperCase();
-      normalizedScores[categoryShort] = Math.round((category.score / 100) * 1000) / 1000; // Round to 3 decimal places
+      normalizedScores[categoryShort] = +(category.score).toFixed(1)
     });
   
-    const overallKBICONSO = Math.round((inputData.score / 100) * 1000) / 1000;
+    const overallKBICONSO = +(inputData.score).toFixed(1)
   
-    // Construct the final object
     const transformedData = {
-      userId: inputData.userId,
+      userId: inputData.userId || 'Unknown',
+      clientId: inputData.clientId || DEFAULT_CLIENT_ID,
       Gender: demographicInfo.Gender || 'Unknown',
       Management: demographicInfo.Management || 'Unknown',
       Age: demographicInfo.Age || 'Unknown',
@@ -354,35 +326,32 @@ function transformSurveyData(inputData) {
 exports.analyseData = async (req, res) => {
     try {
         const { batchId } = req.query;
-        const { filters, id } = req.body;
-
+        const { clientId, filters, id } = req.body;
         if (!batchId)
             return res.status(500).json({ success: false, message: 'Batch ID is required' });
-
+        
         await connectDB();
 
         const records = []
         const people = await UserResponse.find();
-        people.forEach(person => {
+        people.forEach(data => {
+            const person = data.toObject();
             records.push(transformSurveyData(person));
-            // console.log(person);
         })
+        const operations = records.map(record => ({
+            updateOne: {
+              filter: { userId: record.userId,
+                 clientId: record.clientId },
+              update: { $setOnInsert: record },
+              upsert: true
+            }
+          }));
 
-        // await Records.insertMany(records);
-        const filteredData = filters
-            ? records.filter(row =>
-                (!filters.Department || row.Department === filters.Department) &&
-                (!filters.Gender || row.Gender === filters.Gender) &&
-                (!filters.Age || row.Age === filters.Age) &&
-                (!filters.Phase || row.Phase === filters.Phase) &&
-                (!filters.Maturity || row.Maturity === filters.Maturity) &&
-                (!filters.Management || row.Management === filters.Management)
-            )
-            : records;
-        // console.log(filteredData);
+        await Records.bulkWrite(operations);
+        const filteredData = records.filter(row => String(row.clientId) === String(batchId))
+        const fullData = records.filter(row => String(row.clientId) !== String(batchId))
 
         const sectorData = records.filter(row=> row.Sector === filteredData[0].Sector);
-        // console.log(sectorData);
         const filteredAnalysis = Analysing(filteredData, true);
         const pr = filteredData.map(r => r.Scores.PR);
         const co = filteredData.map(r => r.Scores.CO);
@@ -401,7 +370,7 @@ exports.analyseData = async (req, res) => {
         const kbiSec = records.map(r => r['KBICONSO']);
 
 
-        const fullAnalysis = Analysing(records, false);
+        const fullAnalysis = Analysing(fullData, false);
         const prAll = records.map(r => r.Scores.PR);
         const coAll = records.map(r => r.Scores.CO);
         const opAll = records.map(r => r.Scores.OP);
@@ -441,22 +410,12 @@ exports.analyseData = async (req, res) => {
                 context : context
             },
             fullData: {
-                // PR: normalDistribution(prAll, records[id]?.Scores?.PR),
-                // CO: normalDistribution(coAll, records[id]?.Scores?.CO),
-                // OP: normalDistribution(opAll, records[id]?.Scores?.OP),
-                // AD: normalDistribution(adAll, records[id]?.Scores?.AD),
-                // CI: normalDistribution(ciAll, records[id]?.Scores?.CI),
                 interpretation: interpretationId,
                 interCompany: interpretationAll,
                 allData: fullAnalysis.allData,
 
             },
             sectorData : {
-                // PR: normalDistribution(prSec, sectorData[id]?.Scores?.PR),
-                // CO: normalDistribution(coSec, sectorData[id]?.Scores?.CO),
-                // OP: normalDistribution(opSec, sectorData[id]?.Scores?.OP),
-                // AD: normalDistribution(adSec, sectorData[id]?.Scores?.AD),
-                // CI: normalDistribution(ciSec, sectorData[id]?.Scores?.CI),
                 allData: sectorAnalysis.allData,
             }
         });
